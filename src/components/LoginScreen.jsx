@@ -67,7 +67,7 @@ export default function LoginScreen({ userLocation, onLogin }) {
 
   return (
     <div className="login-screen">
-      <h1>🏃‍♂️ Pabili App</h1>
+      <h1>🏃‍♂️ Pabili App Vercel Test</h1>
 
       {userLocation ? (
         <div className="location-badge">📍 Location detected</div>
