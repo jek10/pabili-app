@@ -1,106 +1,80 @@
 /**
- * Main App Component - FIXED VERSION
- * Routes between Login, Customer, Agent, and Admin dashboards
+ * Main App Component - WITH PERSISTENT LOGIN
+ * Keeps user logged in using localStorage
  */
 
-import { useState, useEffect } from 'react';
-import './App.css';
+import { useState, useEffect } from 'react'
+import './App.css'
+import { supabase } from './supabaseClient'
+import { getUserLocation } from './utils/locationUtils'
 
-// Import utilities
-import { getUserLocation } from './utils/locationUtils';
-
-// Import components
-import LoginScreen from './components/LoginScreen';
-import CustomerDashboard from './components/CustomerDashboard';
-import AgentDashboard from './components/AgentDashboard';
-import AdminDashboard from './components/AdminDashboard';
+import LoginScreen from './components/LoginScreen'
+import CustomerDashboard from './components/CustomerDashboard'
+import AgentDashboard from './components/AgentDashboard'
+import AdminDashboard from './components/AdminDashboard'
 
 function App() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [view, setView] = useState('login');
-  const [userLocation, setUserLocation] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null)
+  const [userLocation, setUserLocation] = useState(null)
 
-  // Get user's location on app load
+  // Load saved user from localStorage on app start
   useEffect(() => {
-    getUserLocation()
-      .then((location) => {
-        setUserLocation(location);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        console.error('Location error:', error);
-        // Set default location if GPS fails
-        setUserLocation({ lat: 14.5995, lng: 120.9842 });
-        setIsLoading(false);
-      });
-  }, []);
-
-  // Update view when user changes
-  useEffect(() => {
-    if (currentUser) {
-      setView(currentUser.user_type);
-    } else {
-      setView('login');
+    const savedUser = localStorage.getItem('pabili_current_user')
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser))
+      } catch (error) {
+        console.error('Error loading saved user:', error)
+        localStorage.removeItem('pabili_current_user')
+      }
     }
-  }, [currentUser]);
+  }, [])
 
-  // Handle login
+  // Get user location
+  useEffect(() => {
+    getUserLocation((location) => {
+      setUserLocation(location)
+    }, (error) => {
+      console.error('Error getting location:', error)
+      setUserLocation({ lat: 14.5995, lng: 120.9842 })
+    })
+  }, [])
+
   const handleLogin = (user) => {
-    setCurrentUser(user);
-  };
-
-  // Handle logout
-  const handleLogout = () => {
-    setCurrentUser(null);
-  };
-
-  // Show loading while getting location
-  if (isLoading) {
-    return (
-      <div className="App">
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '100vh',
-            fontSize: '18px',
-            color: '#666',
-          }}
-        >
-          Loading...
-        </div>
-      </div>
-    );
+    setCurrentUser(user)
+    // Save to localStorage for persistent login
+    localStorage.setItem('pabili_current_user', JSON.stringify(user))
   }
 
-  // Render appropriate view based on current state
-  return (
-    <div className="App" key={view}>
-      {view === 'login' && (
-        <LoginScreen userLocation={userLocation} onLogin={handleLogin} />
-      )}
+  const handleLogout = () => {
+    setCurrentUser(null)
+    // Clear localStorage on logout
+    localStorage.removeItem('pabili_current_user')
+  }
 
-      {view === 'customer' && (
+  return (
+    <div className="App">
+      {!currentUser ? (
+        <LoginScreen onLogin={handleLogin} />
+      ) : currentUser.user_type === 'customer' ? (
         <CustomerDashboard
           currentUser={currentUser}
           userLocation={userLocation}
           onLogout={handleLogout}
         />
-      )}
-
-      {view === 'agent' && (
+      ) : currentUser.user_type === 'agent' ? (
         <AgentDashboard
           currentUser={currentUser}
           userLocation={userLocation}
           onLogout={handleLogout}
         />
+      ) : currentUser.user_type === 'admin' ? (
+        <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
+      ) : (
+        <div>Unknown user type</div>
       )}
-
-      {view === 'admin' && <AdminDashboard onLogout={handleLogout} />}
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
